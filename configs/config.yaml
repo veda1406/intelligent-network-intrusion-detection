@@ -1,0 +1,99 @@
+# Global Configuration for Intelligent Network Intrusion Detection System
+
+system:
+  project_name: "Intelligent Network Intrusion Detection and Threat Analysis"
+  seed: 42
+  debug: true
+  device: "auto" # cpu, cuda, or auto
+
+data:
+  dataset_name: "CICIDS2017" # Configurable: "CICIDS2017", "UNSW-NB15", etc.
+  raw_data_path: "data/raw/dataset.csv"
+  processed_data_path: "data/processed/preprocessed_data.parquet"
+  target_column: "Label"
+  classification_mode: "multiclass" # Options: "binary", "multiclass"
+  binary_positive_label: "ATTACK"
+  test_size: 0.2
+  val_size: 0.1
+  stratify: true
+
+preprocessing:
+  handle_missing: true
+  missing_strategy: "drop" # Options: "drop", "mean", "median"
+  remove_duplicates: true
+  infinite_to_nan: true
+  scaling_method: "standard" # Options: "standard", "minmax", "robust"
+  categorical_encoding: "onehot" # Options: "onehot", "label", "target"
+
+imbalance_handling:
+  enabled: true
+  method: "smote" # Options: "smote", "random_over", "random_under", "class_weights"
+  sampling_strategy: "auto"
+
+features:
+  selection_enabled: false
+  method: "importance" # Options: "correlation", "importance", "mutual_info"
+  top_k_features: 30
+
+models:
+  artifacts_dir: "saved_models"
+  
+  logistic_regression:
+    max_iter: 1000
+    C: 1.0
+    solver: "lbfgs"
+
+  decision_tree:
+    max_depth: 15
+    criterion: "gini"
+
+  random_forest:
+    n_estimators: 100
+    max_depth: 20
+    random_state: 42
+
+  svm:
+    kernel: "rbf"
+    C: 1.0
+    probability: true
+
+  dnn:
+    hidden_units: [128, 64, 32]
+    activation: "relu"
+    dropout_rate: 0.3
+    use_batch_norm: true
+    learning_rate: 0.001
+    batch_size: 256
+    epochs: 50
+    early_stopping_patience: 10
+
+ensemble:
+  method: "stacking" # Options: "soft_voting", "stacking"
+  meta_learner: "logistic_regression"
+
+explainability:
+  enabled: true
+  sample_size: 100
+  method: "shap"
+
+threat_analysis:
+  severity_mapping:
+    BENIGN: "NORMAL"
+    DoS: "HIGH"
+    DDoS: "CRITICAL"
+    PortScan: "MEDIUM"
+    Bot: "HIGH"
+    Infiltration: "CRITICAL"
+    Web Attack: "HIGH"
+    Brute Force: "MEDIUM"
+    DEFAULT_MALICIOUS: "HIGH"
+  
+  confidence_thresholds:
+    high_confidence: 0.85
+    medium_confidence: 0.60
+    low_confidence: 0.00
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
