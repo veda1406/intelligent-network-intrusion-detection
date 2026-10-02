@@ -90,3 +90,63 @@ export async function predictFlow(featuresDict, groundTruth = null, dataset = "C
   }
 }
 
+/**
+ * Fetches DNN evaluation metrics, confusion matrix, and layer architecture
+ */
+export async function fetchDnnEvaluation() {
+  try {
+    const res = await fetch(`${BASE_URL}/api/dnn-evaluation`);
+    if (!res.ok) throw new Error(`Failed to fetch DNN evaluation (${res.status})`);
+    return await res.json();
+  } catch (err) {
+    console.error("API Error (fetchDnnEvaluation):", err);
+    return null;
+  }
+}
+
+/**
+ * Fetches comparative benchmark report across DNN, Random Forest, DT, LR, and Ensemble
+ */
+export async function fetchModelComparison() {
+  try {
+    const res = await fetch(`${BASE_URL}/api/model-comparison`);
+    if (!res.ok) throw new Error(`Failed to fetch model comparison (${res.status})`);
+    return await res.json();
+  } catch (err) {
+    console.error("API Error (fetchModelComparison):", err);
+    return null;
+  }
+}
+
+/**
+ * Sends flow features directly to the dedicated DNN inference endpoint
+ */
+export async function predictWithDnn(featuresDict, groundTruth = null, dataset = "CICIDS2017") {
+  try {
+    const payload = {
+      features: featuresDict,
+      ground_truth: groundTruth,
+      dataset: dataset,
+    };
+
+    const res = await fetch(`${BASE_URL}/api/dnn-predict`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || `DNN prediction failed (${res.status})`);
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("API Error (predictWithDnn):", err);
+    throw err;
+  }
+}
+
+

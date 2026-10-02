@@ -148,6 +148,9 @@ class DataPreprocessor:
 
         X_num_processed = None
         if self.num_cols:
+            for col in self.num_cols:
+                if col not in X.columns:
+                    X[col] = 0.0
             X_num = X[self.num_cols]
             if self.imputer is not None:
                 X_num = pd.DataFrame(self.imputer.transform(X_num), columns=self.num_cols, index=X_num.index)

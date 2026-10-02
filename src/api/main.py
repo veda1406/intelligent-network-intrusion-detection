@@ -6,12 +6,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+import json
 from src.api.schemas import (
     NetworkFlowInput,
     ThreatAssessmentResponse,
     HealthCheckResponse,
     SampleFlowPreset,
     ModelStatsResponse,
+    DnnPredictionResponse,
+    DnnEvaluationResponse,
+    ModelComparisonResponse,
 )
 from src.utils.config_loader import load_config
 from src.data.loader import DatasetLoader
@@ -52,6 +56,8 @@ PREPROCESSOR: Optional[DataPreprocessor] = None
 FEATURE_ENGINEER = FeatureEngineer(CONFIG)
 MODEL: Optional[Any] = None
 MODEL_META: dict = {}
+DNN_MODEL: Optional[Any] = None
+DNN_META: dict = {}
 SEVERITY_ANALYZER = ThreatSeverityAnalyzer(CONFIG)
 EXPLAINER: Optional[IntrusionExplainer] = None
 RAW_DF: Optional[pd.DataFrame] = None
@@ -59,7 +65,7 @@ TEST_SPLIT_DF: Optional[pd.DataFrame] = None
 
 
 def load_artifacts():
-    global PREPROCESSOR, MODEL, MODEL_META, EXPLAINER, RAW_DF, TEST_SPLIT_DF
+    global PREPROCESSOR, MODEL, MODEL_META, DNN_MODEL, DNN_META, EXPLAINER, RAW_DF, TEST_SPLIT_DF
     try:
         prep = DataPreprocessor(CONFIG)
         if os.path.exists("saved_models/preprocessor.pkl"):
@@ -72,7 +78,13 @@ def load_artifacts():
             MODEL = model
             MODEL_META = meta
             EXPLAINER = IntrusionExplainer(MODEL, CONFIG)
-            logger.info("Successfully loaded pre-trained model and preprocessor artifacts.")
+            logger.info("Successfully loaded pre-trained operational model and preprocessor artifacts.")
+
+        if os.path.exists("saved_models/dnn_model.pkl"):
+            dnn_m, dnn_m_meta = registry.load_model("dnn_model")
+            DNN_MODEL = dnn_m
+            DNN_META = dnn_m_meta
+            logger.info("Successfully loaded pre-trained Deep Neural Network (DNN) model artifact.")
 
         raw_path = CONFIG.get("data", {}).get("raw_data_path", "data/raw/dataset.csv")
         if os.path.exists(raw_path):
@@ -83,6 +95,9 @@ def load_artifacts():
             logger.info(f"Loaded CICIDS2017 dataset: {len(RAW_DF)} total flows, {len(TEST_SPLIT_DF)} held-out test flows.")
     except Exception as e:
         logger.warning(f"Error loading initial artifacts: {e}")
+
+# Eager load artifacts on startup
+load_artifacts()
 
 
 @app.get("/health", response_model=HealthCheckResponse)
@@ -311,7 +326,25 @@ def predict_flow(payload: NetworkFlowInput):
     # 5. Threat Severity operational assessment (explicitly decouples confidence from severity)
     threat_assessment = SEVERITY_ANALYZER.evaluate_threat(predicted_label, confidence)
 
-    # 6. Ground-truth verification comparison
+    # 6. Run Deep Neural Network (DNN) evaluation on this exact preprocessed flow
+    dnn_pred = None
+    dnn_conf = None
+    dnn_is_correct = None
+    if DNN_MODEL is not None and PREPROCESSOR is not None:
+        try:
+            dnn_probs = DNN_MODEL.predict_proba(X_proc)[0]
+            dnn_class_idx = int(np.argmax(dnn_probs))
+            dnn_conf = float(dnn_probs[dnn_class_idx])
+            if hasattr(PREPROCESSOR, "classes_") and len(PREPROCESSOR.classes_) > dnn_class_idx:
+                dnn_pred = str(PREPROCESSOR.classes_[dnn_class_idx])
+            else:
+                dnn_pred = str(dnn_class_idx)
+            if payload.ground_truth:
+                dnn_is_correct = bool(dnn_pred.strip().upper() == payload.ground_truth.strip().upper())
+        except Exception as e:
+            logger.warning(f"Error executing DNN prediction pass: {e}")
+
+    # 7. Ground-truth verification comparison
     is_correct = None
     if payload.ground_truth:
         is_correct = bool(predicted_label.strip().upper() == payload.ground_truth.strip().upper())
@@ -324,7 +357,86 @@ def predict_flow(payload: NetworkFlowInput):
         ground_truth=payload.ground_truth,
         dataset=payload.dataset or CONFIG.get("data", {}).get("dataset_name", "CICIDS2017"),
         is_correct=is_correct,
+        dnn_prediction=dnn_pred,
+        dnn_confidence=dnn_conf,
+        dnn_is_correct=dnn_is_correct,
     )
+
+
+@app.post("/api/dnn-predict", response_model=DnnPredictionResponse)
+def predict_with_dnn(payload: NetworkFlowInput):
+    """
+    Dedicated Deep Neural Network inference endpoint.
+    Passes raw flow features through the feature engineering and preprocessor pipeline,
+    then executes forward inference through the 4-layer Deep Neural Network (128-64-32).
+    """
+    if not payload.features:
+        raise HTTPException(status_code=400, detail="Empty feature dictionary in payload.")
+
+    if PREPROCESSOR is None or DNN_MODEL is None:
+        raise HTTPException(status_code=503, detail="DNN model or preprocessor artifacts not loaded.")
+
+    try:
+        df_raw = pd.DataFrame([payload.features])
+        df_eng = FEATURE_ENGINEER.create_features(df_raw)
+        X_proc, _ = PREPROCESSOR.transform(df_eng)
+
+        probs = DNN_MODEL.predict_proba(X_proc)[0]
+        class_idx = int(np.argmax(probs))
+        confidence = float(probs[class_idx])
+
+        classes = list(PREPROCESSOR.classes_) if hasattr(PREPROCESSOR, "classes_") else [str(i) for i in range(len(probs))]
+        predicted_class = classes[class_idx]
+
+        is_correct = None
+        if payload.ground_truth:
+            is_correct = bool(predicted_class.strip().upper() == payload.ground_truth.strip().upper())
+
+        probs_map = {cls_name: round(float(probs[i]), 4) for i, cls_name in enumerate(classes)}
+
+        return DnnPredictionResponse(
+            prediction=predicted_class,
+            confidence=round(confidence, 4),
+            ground_truth=payload.ground_truth,
+            is_correct=is_correct,
+            probabilities=probs_map,
+        )
+    except Exception as e:
+        logger.error(f"Error in DNN individual prediction: {e}")
+        raise HTTPException(status_code=500, detail=f"DNN inference failure: {str(e)}")
+
+
+@app.get("/api/dnn-evaluation", response_model=DnnEvaluationResponse)
+def get_dnn_evaluation():
+    """
+    Returns empirical evaluation metrics, confusion matrix, and layer architecture
+    for the trained Deep Neural Network on the held-out test split.
+    """
+    metrics_path = "saved_models/dnn_metrics.json"
+    if not os.path.exists(metrics_path):
+        raise HTTPException(status_code=404, detail="DNN evaluation metrics not found on disk.")
+
+    with open(metrics_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    return DnnEvaluationResponse(**data)
+
+
+@app.get("/api/model-comparison", response_model=ModelComparisonResponse)
+def get_model_comparison():
+    """
+    Returns the comprehensive empirical comparison across Deep Neural Network,
+    Random Forest, Decision Tree, Logistic Regression, and Ensemble architectures.
+    """
+    comparison_path = "saved_models/model_comparison.json"
+    if not os.path.exists(comparison_path):
+        raise HTTPException(status_code=404, detail="Model comparison report not found on disk.")
+
+    with open(comparison_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    return ModelComparisonResponse(**data)
+
 
 
 

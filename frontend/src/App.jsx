@@ -4,8 +4,9 @@ import FlowInputStep from './components/FlowInputStep';
 import AiDetectionStep from './components/AiDetectionStep';
 import ExplainableAiStep from './components/ExplainableAiStep';
 import ThreatResponseStep from './components/ThreatResponseStep';
+import DnnAnalysisView from './components/DnnAnalysisView';
+import ModelComparisonView from './components/ModelComparisonView';
 import SocOverviewView from './components/SocOverviewView';
-import ModelInsightsView from './components/ModelInsightsView';
 import {
   fetchHealth,
   fetchModelStats,
@@ -16,8 +17,8 @@ import {
 import { AlertTriangle } from 'lucide-react';
 
 export default function App() {
-  // Navigation & Workflow state
-  const [activeTab, setActiveTab] = useState('detection'); // 'detection', 'overview', 'insights'
+  // Navigation & Workflow state: 'detection', 'dnn-analysis', 'model-comparison', 'overview'
+  const [activeTab, setActiveTab] = useState('detection');
   const [detectionStep, setDetectionStep] = useState(1); // 1: Input, 2: AI Detection, 3: Explanation, 4: Threat Response
 
   // Backend telemetry & model state
@@ -285,17 +286,20 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW 2: SOC OVERVIEW TELEMETRY */}
+        {/* VIEW 2: DEEP NEURAL NETWORK (DNN) ANALYSIS */}
+        {activeTab === 'dnn-analysis' && (
+          <DnnAnalysisView activeFlow={activeFlow} />
+        )}
+
+        {/* VIEW 3: MODEL COMPARISON & EMPIRICAL BENCHMARK */}
+        {activeTab === 'model-comparison' && (
+          <ModelComparisonView />
+        )}
+
+        {/* VIEW 4: SOC OVERVIEW TELEMETRY */}
         {activeTab === 'overview' && (
           <SocOverviewView
             alerts={alerts}
-            modelStats={modelStats}
-          />
-        )}
-
-        {/* VIEW 3: MODEL INSIGHTS & ACADEMIC BENCHMARK */}
-        {activeTab === 'insights' && (
-          <ModelInsightsView
             modelStats={modelStats}
           />
         )}

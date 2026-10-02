@@ -73,8 +73,9 @@ export default function Navbar({ activeTab, onSelectTab, health, onRefreshHealth
         }}>
           {[
             { id: 'detection', label: 'Detection' },
+            { id: 'dnn-analysis', label: 'DNN Analysis' },
+            { id: 'model-comparison', label: 'Model Comparison' },
             { id: 'overview', label: 'SOC Overview' },
-            { id: 'insights', label: 'Model Insights' }
           ].map(tab => {
             const isActive = activeTab === tab.id;
             return (

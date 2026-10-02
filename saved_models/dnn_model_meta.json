@@ -1,0 +1,12 @@
+{
+  "accuracy": 0.525,
+  "model_type": "DeepNeuralNetwork",
+  "architecture": "Dense(128)->Dense(64)->Dense(32)->Softmax",
+  "hidden_units": [
+    128,
+    64,
+    32
+  ],
+  "model_name": "dnn_model",
+  "saved_file": "dnn_model.pkl"
+}

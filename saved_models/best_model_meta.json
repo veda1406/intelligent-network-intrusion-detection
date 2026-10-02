@@ -1,0 +1,9 @@
+{
+  "accuracy": 0.66,
+  "f1_score": 0.5416,
+  "model_type": "RandomForestEnsemble",
+  "selected_as_operational": true,
+  "winner_key": "random_forest",
+  "model_name": "best_model",
+  "saved_file": "best_model.pkl"
+}
