@@ -43,17 +43,39 @@ export async function fetchSampleFlows() {
 }
 
 /**
+ * Fetches an arbitrary random held-out test sample from the CICIDS2017 test partition
+ */
+export async function fetchRandomTestSample() {
+  try {
+    const res = await fetch(`${BASE_URL}/api/random-test-sample`);
+    if (!res.ok) throw new Error(`Failed to fetch random test sample (${res.status})`);
+    return await res.json();
+  } catch (err) {
+    console.error("API Error (fetchRandomTestSample):", err);
+    throw err;
+  }
+}
+
+/**
  * Sends network flow feature dictionary to FastAPI /predict endpoint
  * @param {Object} featuresDict - Key-value pair of network flow features
+ * @param {string} [groundTruth] - Optional ground truth label
+ * @param {string} [dataset] - Optional dataset identifier
  */
-export async function predictFlow(featuresDict) {
+export async function predictFlow(featuresDict, groundTruth = null, dataset = "CICIDS2017") {
   try {
+    const payload = {
+      features: featuresDict,
+      ground_truth: groundTruth,
+      dataset: dataset,
+    };
+
     const res = await fetch(`${BASE_URL}/predict`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ features: featuresDict }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -67,3 +89,4 @@ export async function predictFlow(featuresDict) {
     throw err;
   }
 }
+

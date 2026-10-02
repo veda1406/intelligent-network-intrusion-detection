@@ -10,7 +10,7 @@ const SEVERITY_CONFIG = {
 };
 
 export default function SeverityDistributionChart({ alerts }) {
-  const total = alerts.length;
+  const total = alerts ? alerts.length : 0;
 
   const counts = {
     NORMAL: 0,
@@ -20,21 +20,23 @@ export default function SeverityDistributionChart({ alerts }) {
     CRITICAL: 0,
   };
 
-  alerts.forEach(a => {
-    const sev = a.threat_severity || 'NORMAL';
-    if (counts[sev] !== undefined) {
-      counts[sev] += 1;
-    } else {
-      counts.HIGH += 1;
-    }
-  });
+  if (alerts) {
+    alerts.forEach(a => {
+      const sev = a.threat_severity || 'NORMAL';
+      if (counts[sev] !== undefined) {
+        counts[sev] += 1;
+      } else {
+        counts.HIGH += 1;
+      }
+    });
+  }
 
   return (
-    <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
+    <div className="clean-card" style={{ marginBottom: '1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <ShieldAlert size={18} color="var(--severity-high)" />
-          <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 700 }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>
             Operational Threat Severity Distribution
           </h3>
         </div>
@@ -56,24 +58,24 @@ export default function SeverityDistributionChart({ alerts }) {
 
             return (
               <div key={sevKey} style={{
-                background: 'rgba(255, 255, 255, 0.02)',
+                background: 'var(--bg-surface-muted)',
                 border: '1px solid var(--border-color)',
                 borderRadius: '8px',
                 padding: '0.875rem'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <span className={`badge ${badgeClass}`}>{sevKey}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <span className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                     {pct}%
                   </span>
                 </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#fff' }}>
-                  {cnt} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-dim)' }}>events</span>
+                <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                  {cnt} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ {total} flows</span>
                 </div>
                 <div style={{
                   height: '4px',
                   width: '100%',
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: '#e2e8f0',
                   borderRadius: '2px',
                   marginTop: '0.5rem',
                   overflow: 'hidden'

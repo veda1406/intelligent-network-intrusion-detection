@@ -8,6 +8,14 @@ class NetworkFlowInput(BaseModel):
         ...,
         description="Key-value mapping of network flow metrics (e.g., flow duration, packet rates)",
     )
+    ground_truth: Optional[str] = Field(
+        default=None,
+        description="Actual ground-truth label of flow for evaluation verification",
+    )
+    dataset: Optional[str] = Field(
+        default="CICIDS2017",
+        description="Origin dataset source (e.g. CICIDS2017)",
+    )
 
 
 class ThreatAssessmentResponse(BaseModel):
@@ -18,6 +26,15 @@ class ThreatAssessmentResponse(BaseModel):
     top_shap_features: Optional[Dict[str, float]] = Field(
         default=None, description="Top SHAP feature importances for prediction explanation"
     )
+    ground_truth: Optional[str] = Field(
+        default=None, description="Actual ground-truth label if provided with the sample"
+    )
+    dataset: str = Field(
+        default="CICIDS2017", description="Source dataset of the evaluated sample"
+    )
+    is_correct: Optional[bool] = Field(
+        default=None, description="Whether predicted class matches ground truth label"
+    )
 
 
 class SampleFlowPreset(BaseModel):
@@ -25,6 +42,10 @@ class SampleFlowPreset(BaseModel):
     name: str
     description: str
     category: str
+    ground_truth: str
+    dataset: str = "CICIDS2017"
+    is_representative: bool = True
+    sample_idx: Optional[int] = None
     features: Dict[str, float]
 
 
@@ -37,7 +58,10 @@ class ModelStatsResponse(BaseModel):
     features_list: List[str]
     accuracy: float
     threat_thresholds: Dict[str, float]
+
+
 class HealthCheckResponse(BaseModel):
     status: str
     model_loaded: bool
     version: str
+

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, ShieldAlert, Cpu, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Cpu, AlertTriangle, CheckCircle2, XCircle, Database } from 'lucide-react';
 
 export default function PredictionDetailsPanel({ selectedAlert }) {
   if (!selectedAlert) {
@@ -14,13 +14,28 @@ export default function PredictionDetailsPanel({ selectedAlert }) {
     );
   }
 
-  const { id, name, prediction, confidence, threat_severity, timestamp } = selectedAlert;
+  const {
+    id,
+    name,
+    prediction,
+    confidence,
+    threat_severity,
+    timestamp,
+    ground_truth,
+    dataset = 'CICIDS2017',
+    is_correct,
+  } = selectedAlert;
+
   const badgeClass = `badge-${threat_severity.toLowerCase()}`;
   const isMalicious = prediction !== 'BENIGN';
+  const hasGroundTruth = ground_truth !== undefined && ground_truth !== null;
+  const isMatch = is_correct !== undefined && is_correct !== null
+    ? is_correct
+    : (hasGroundTruth && prediction.toUpperCase() === ground_truth.toUpperCase());
 
   return (
     <div className="glass-card cyan-glow" style={{ marginBottom: '1.5rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
             FLOW INSPECTION ID: {id}
@@ -29,28 +44,64 @@ export default function PredictionDetailsPanel({ selectedAlert }) {
             {name || id}
           </h3>
         </div>
-        <span className={`badge ${badgeClass}`} style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}>
-          {threat_severity} SEVERITY
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span className="badge badge-normal" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <Database size={12} /> {dataset}
+          </span>
+          <span className={`badge ${badgeClass}`} style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}>
+            {threat_severity} SEVERITY
+          </span>
+        </div>
       </div>
 
       {/* Grid Summary */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1rem',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '0.875rem',
         marginBottom: '1.25rem'
       }}>
-        {/* Prediction Class */}
+        {/* Dataset Origin */}
         <div style={{
           background: 'rgba(255, 255, 255, 0.02)',
           border: '1px solid var(--border-color)',
           borderRadius: '8px',
           padding: '0.875rem'
         }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Predicted Class</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Dataset</div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginTop: '0.25rem' }}>
+            {dataset}
+          </div>
+        </div>
+
+        {/* Ground Truth Class */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          padding: '0.875rem'
+        }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ground Truth</div>
           <div style={{
-            fontSize: '1.35rem',
+            fontSize: '1.2rem',
+            fontWeight: 800,
+            color: hasGroundTruth ? (ground_truth === 'BENIGN' ? 'var(--severity-normal)' : 'var(--severity-high)') : 'var(--text-dim)',
+            marginTop: '0.25rem'
+          }}>
+            {ground_truth || 'N/A (Custom)'}
+          </div>
+        </div>
+
+        {/* Model Prediction Class */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          padding: '0.875rem'
+        }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Model Prediction</div>
+          <div style={{
+            fontSize: '1.2rem',
             fontWeight: 800,
             color: isMalicious ? 'var(--severity-critical)' : 'var(--severity-normal)',
             marginTop: '0.25rem'
@@ -59,6 +110,30 @@ export default function PredictionDetailsPanel({ selectedAlert }) {
           </div>
         </div>
 
+        {/* Verification Status */}
+        {hasGroundTruth && (
+          <div style={{
+            background: isMatch ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+            border: isMatch ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '8px',
+            padding: '0.875rem'
+          }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Validation Status</div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '1rem',
+              fontWeight: 800,
+              color: isMatch ? 'var(--severity-normal)' : 'var(--severity-critical)',
+              marginTop: '0.25rem'
+            }}>
+              {isMatch ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+              {isMatch ? 'Correct (Match)' : 'Misclassified'}
+            </div>
+          </div>
+        )}
+
         {/* Statistical Confidence */}
         <div style={{
           background: 'rgba(255, 255, 255, 0.02)',
@@ -66,8 +141,8 @@ export default function PredictionDetailsPanel({ selectedAlert }) {
           borderRadius: '8px',
           padding: '0.875rem'
         }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Model Certainty Confidence</div>
-          <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--accent-cyan)', marginTop: '0.25rem' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Prediction Confidence</div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-cyan)', marginTop: '0.25rem' }}>
             {(confidence * 100).toFixed(1)}%
           </div>
         </div>
@@ -79,8 +154,8 @@ export default function PredictionDetailsPanel({ selectedAlert }) {
           borderRadius: '8px',
           padding: '0.875rem'
         }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Evaluation Timestamp</div>
-          <div className="font-mono" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#e2e8f0', marginTop: '0.5rem' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Timestamp</div>
+          <div className="font-mono" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', marginTop: '0.4rem' }}>
             {timestamp}
           </div>
         </div>
@@ -109,15 +184,16 @@ export default function PredictionDetailsPanel({ selectedAlert }) {
             textTransform: 'uppercase',
             letterSpacing: '0.04em'
           }}>
-            AUTOMATED SOC ACTION RECOMMENDATION
+            AUTOMATED SOC ACTION PROTOCOL
           </div>
           <p style={{ fontSize: '0.875rem', color: '#f1f5f9', marginTop: '0.25rem' }}>
             {isMalicious
-              ? `Action Required for ${prediction}: Initiate automated firewall block rule for source flow IP & log incident for SOC review.`
-              : 'Permit traffic flow. No operational security threat detected.'}
+              ? `Operational protocol for ${prediction} [${threat_severity}]: Automated network rate limiting & host firewall inspection rules deployed.`
+              : 'Permit traffic flow. Statistical confidence and threat matrix indicate normal traffic behavior.'}
           </p>
         </div>
       </div>
     </div>
   );
 }
+
